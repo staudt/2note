@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNotes } from '../context/NotesContext';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar } from './Sidebar';
@@ -13,6 +13,41 @@ import { matchesShortcut } from '../utils/shortcuts';
 
 type DialogType = 'none' | 'newNotebook' | 'renameNotebook' | 'renameNote' | 'deleteNote' | 'deleteNotebook';
 
+// UI state persistence
+const UI_STATE_KEY = '2note_ui_state';
+
+interface UIState {
+  sidebarCollapsed: boolean;
+  expandedNotebooks: string[];
+  lastActiveNoteId: string | null;
+  lastActiveNotebookId: string | null;
+}
+
+function loadUIState(): UIState {
+  try {
+    const stored = localStorage.getItem(UI_STATE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load UI state:', e);
+  }
+  return {
+    sidebarCollapsed: false,
+    expandedNotebooks: [],
+    lastActiveNoteId: null,
+    lastActiveNotebookId: null,
+  };
+}
+
+function saveUIState(state: UIState): void {
+  try {
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save UI state:', e);
+  }
+}
+
 export function App() {
   const {
     state,
@@ -23,6 +58,7 @@ export function App() {
     deleteNote,
     deleteNotebook,
     setActiveNote,
+    setActiveNotebook,
   } = useNotes();
 
   const { user, isAuthEnabled, signOut } = useAuth();
@@ -32,6 +68,12 @@ export function App() {
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [dialogType, setDialogType] = useState<DialogType>('none');
   const [targetLine, setTargetLine] = useState<number | undefined>(undefined);
+
+  // Sidebar state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => loadUIState().sidebarCollapsed);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [expandedNotebooks, setExpandedNotebooks] = useState<Set<string>>(() => new Set(loadUIState().expandedNotebooks));
+  const initialLoadDone = useRef(false);
 
   const activeNote = state.notes.find((n) => n.id === state.activeNoteId);
   const activeNotebook = state.notebooks.find((n) => n.id === state.activeNotebookId);
@@ -209,6 +251,54 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [commands]);
 
+  // Restore last active note/notebook after initial load
+  useEffect(() => {
+    if (state.isLoading || initialLoadDone.current) return;
+
+    const uiState = loadUIState();
+
+    // Only restore if notes are loaded and the saved note still exists
+    if (uiState.lastActiveNoteId && state.notes.some(n => n.id === uiState.lastActiveNoteId)) {
+      setActiveNote(uiState.lastActiveNoteId);
+    }
+    if (uiState.lastActiveNotebookId && state.notebooks.some(n => n.id === uiState.lastActiveNotebookId)) {
+      setActiveNotebook(uiState.lastActiveNotebookId);
+    }
+
+    // Filter expanded notebooks to only include existing ones
+    const validExpanded = uiState.expandedNotebooks.filter(id =>
+      state.notebooks.some(n => n.id === id)
+    );
+    setExpandedNotebooks(new Set(validExpanded));
+
+    initialLoadDone.current = true;
+  }, [state.isLoading, state.notes, state.notebooks, setActiveNote, setActiveNotebook]);
+
+  // Persist UI state when it changes
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+
+    saveUIState({
+      sidebarCollapsed: isSidebarCollapsed,
+      expandedNotebooks: Array.from(expandedNotebooks),
+      lastActiveNoteId: state.activeNoteId,
+      lastActiveNotebookId: state.activeNotebookId,
+    });
+  }, [isSidebarCollapsed, expandedNotebooks, state.activeNoteId, state.activeNotebookId]);
+
+  // Sidebar handlers
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed(prev => !prev);
+  }, []);
+
+  const handleMobileClose = useCallback(() => {
+    setIsMobileOpen(false);
+  }, []);
+
+  const handleExpandedChange = useCallback((expanded: Set<string>) => {
+    setExpandedNotebooks(expanded);
+  }, []);
+
   if (state.isLoading) {
     return (
       <div className="app">
@@ -222,7 +312,16 @@ export function App() {
   return (
     <div className="app">
       <div className="app-header">
-        <span className="app-title">2Note</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            className="hamburger-button"
+            onClick={() => setIsMobileOpen(true)}
+            title="Open menu"
+          >
+            ☰
+          </button>
+          <span className="app-title">2Note</span>
+        </div>
         <div className="user-menu">
           {isAuthEnabled && user && (
             <>
@@ -252,7 +351,20 @@ export function App() {
         </div>
       </div>
       <div className="app-main">
-        <Sidebar onTaskClick={handleTaskClick} />
+        {/* Mobile overlay */}
+        <div
+          className={`sidebar-overlay ${isMobileOpen ? 'visible' : ''}`}
+          onClick={handleMobileClose}
+        />
+        <Sidebar
+          onTaskClick={handleTaskClick}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+          isMobileOpen={isMobileOpen}
+          onMobileClose={handleMobileClose}
+          expandedNotebooks={expandedNotebooks}
+          onExpandedChange={handleExpandedChange}
+        />
         <Editor targetLine={targetLine} onLineNavigated={() => setTargetLine(undefined)} />
       </div>
 

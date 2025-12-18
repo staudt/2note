@@ -20,9 +20,23 @@ interface PendingTask {
 
 interface SidebarProps {
   onTaskClick: (noteId: string, line: number) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  isMobileOpen: boolean;
+  onMobileClose: () => void;
+  expandedNotebooks: Set<string>;
+  onExpandedChange: (expanded: Set<string>) => void;
 }
 
-export function Sidebar({ onTaskClick }: SidebarProps) {
+export function Sidebar({
+  onTaskClick,
+  isCollapsed,
+  onToggleCollapse,
+  isMobileOpen,
+  onMobileClose,
+  expandedNotebooks,
+  onExpandedChange,
+}: SidebarProps) {
   const {
     state,
     setActiveNotebook,
@@ -38,7 +52,6 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
     moveNoteToNotebook,
   } = useNotes();
 
-  const [expandedNotebooks, setExpandedNotebooks] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [draggedItem, setDraggedItem] = useState<{ type: 'notebook' | 'note'; id: string; notebookId?: string } | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
@@ -80,7 +93,7 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
     } else {
       newExpanded.add(id);
     }
-    setExpandedNotebooks(newExpanded);
+    onExpandedChange(newExpanded);
   };
 
   const handleNotebookClick = (id: string) => {
@@ -91,6 +104,7 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
   const handleNoteClick = (noteId: string, notebookId: string) => {
     setActiveNotebook(notebookId);
     setActiveNote(noteId);
+    onMobileClose();
   };
 
   const getNotesForNotebook = useCallback((notebookId: string) => {
@@ -115,7 +129,7 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
   const handleNewNote = async (notebookId: string) => {
     const note = await createNote(notebookId, 'New Note');
     setActiveNote(note.id);
-    setExpandedNotebooks(prev => new Set([...prev, notebookId]));
+    onExpandedChange(new Set([...expandedNotebooks, notebookId]));
   };
 
   const handleDeleteNotebook = async (notebookId: string) => {
@@ -228,7 +242,7 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
     if (draggedItem.type === 'note' && targetType === 'notebook') {
       if (draggedItem.notebookId !== targetId) {
         await moveNoteToNotebook(draggedItem.id, targetId);
-        setExpandedNotebooks(prev => new Set([...prev, targetId]));
+        onExpandedChange(new Set([...expandedNotebooks, targetId]));
       }
     }
 
@@ -240,17 +254,32 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
     setDragOverItem(null);
   };
 
+  const sidebarClasses = [
+    'sidebar',
+    isCollapsed ? 'collapsed' : '',
+    isMobileOpen ? 'mobile-open' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className="sidebar"
+      className={sidebarClasses}
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).closest('.notebook-item, .note-item')) return;
         handleContextMenu(e, 'empty');
       }}
     >
       <div className="sidebar-header">
-        <span>Notebooks</span>
-        <button className="btn btn-icon" onClick={handleNewNotebook} title="New Notebook">+</button>
+        <span className="sidebar-header-text">Notebooks</span>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <button className="btn btn-icon" onClick={handleNewNotebook} title="New Notebook">+</button>
+          <button
+            className="sidebar-collapse-btn"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            ◀
+          </button>
+        </div>
       </div>
       <div className="sidebar-content">
         {sortedNotebooks.length === 0 ? (
