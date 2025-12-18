@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isAuthEnabled } from '../firebase/config';
 
 interface HelpModalProps {
   isOpen: boolean;
@@ -7,8 +8,7 @@ interface HelpModalProps {
 
 const shortcuts = [
   { category: 'General', items: [
-    { shortcut: 'Ctrl+Shift+P', description: 'Open command palette' },
-    { shortcut: 'Ctrl+P', description: 'Quick open' },
+    { shortcut: 'Ctrl+P', description: 'Command palette / Quick open' },
     { shortcut: 'Ctrl+S', description: 'Save note' },
   ]},
   { category: 'Notes', items: [
@@ -23,8 +23,7 @@ const shortcuts = [
     { shortcut: 'Alt+[', description: 'Previous note' },
   ]},
   { category: 'Formatting', items: [
-    { shortcut: 'Ctrl+B', description: 'Toggle bullet list' },
-    { shortcut: 'Ctrl+Shift+B', description: 'Toggle numbered list' },
+    { shortcut: 'Ctrl+B', description: 'Toggle bold' },
     { shortcut: 'Ctrl+/', description: 'Toggle strikethrough' },
     { shortcut: 'Ctrl+1', description: 'Toggle star' },
     { shortcut: 'Ctrl+2', description: 'Toggle task checkbox' },
@@ -93,14 +92,29 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           <section className="help-section">
             <h3 className="help-section-title">Data Storage</h3>
             <div className="help-storage-info">
-              <p>Your notes are stored locally in your browser's localStorage.</p>
-              <p className="help-storage-path">
-                <strong>Location:</strong> Browser localStorage (domain-specific)
-              </p>
-              <p className="help-storage-note">
-                Data persists across sessions but is specific to this browser.
-                Use browser's developer tools to export/backup if needed.
-              </p>
+              {isAuthEnabled ? (
+                <>
+                  <p>Your notes are stored securely in Firebase Firestore.</p>
+                  <p className="help-storage-path">
+                    <strong>Location:</strong> Cloud (Firebase Firestore)
+                  </p>
+                  <p className="help-storage-note">
+                    Data syncs across devices when signed in with the same account.
+                    Use the Backup & Restore feature to export your notes.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>Your notes are stored locally in your browser's localStorage.</p>
+                  <p className="help-storage-path">
+                    <strong>Location:</strong> Browser localStorage (domain-specific)
+                  </p>
+                  <p className="help-storage-note">
+                    Data persists across sessions but is specific to this browser.
+                    Use the Backup & Restore feature to export your notes.
+                  </p>
+                </>
+              )}
             </div>
           </section>
 

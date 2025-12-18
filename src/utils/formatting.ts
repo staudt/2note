@@ -170,6 +170,42 @@ export function toggleStrikethrough(
   }
 }
 
+export function toggleBold(
+  content: string,
+  selectionStart: number,
+  selectionEnd: number
+): { content: string; newSelectionStart: number; newSelectionEnd: number } {
+  if (selectionStart === selectionEnd) {
+    // No selection - insert ** and place cursor in middle
+    const newContent = content.slice(0, selectionStart) + '****' + content.slice(selectionEnd);
+    return {
+      content: newContent,
+      newSelectionStart: selectionStart + 2,
+      newSelectionEnd: selectionStart + 2,
+    };
+  }
+
+  const selectedText = content.slice(selectionStart, selectionEnd);
+
+  if (selectedText.startsWith('**') && selectedText.endsWith('**') && selectedText.length > 4) {
+    // Remove bold
+    const newText = selectedText.slice(2, -2);
+    return {
+      content: content.slice(0, selectionStart) + newText + content.slice(selectionEnd),
+      newSelectionStart: selectionStart,
+      newSelectionEnd: selectionStart + newText.length,
+    };
+  } else {
+    // Add bold
+    const newText = `**${selectedText}**`;
+    return {
+      content: content.slice(0, selectionStart) + newText + content.slice(selectionEnd),
+      newSelectionStart: selectionStart,
+      newSelectionEnd: selectionStart + newText.length,
+    };
+  }
+}
+
 export function getLineInfo(content: string, cursorPos: number): {
   lineIndex: number;
   lineStart: number;
@@ -208,13 +244,13 @@ export function indentLine(
 
   let offset = 0;
   for (let i = startLineIndex; i <= endLineIndex; i++) {
-    lines[i] = '\t' + lines[i];
-    offset += 1;
+    lines[i] = '  ' + lines[i];
+    offset += 2;
   }
 
   return {
     content: lines.join('\n'),
-    newSelectionStart: selectionStart + 1,
+    newSelectionStart: selectionStart + 2,
     newSelectionEnd: selectionEnd + offset,
   };
 }

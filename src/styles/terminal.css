@@ -483,8 +483,21 @@ body {
   background: var(--bg-tertiary);
 }
 
+.command-palette-item-icon {
+  width: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .command-palette-item-name {
   color: var(--text-primary);
+  flex: 1;
+}
+
+.command-palette-item-notebook {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 8px;
 }
 
 .command-palette-item-shortcut {
@@ -493,6 +506,7 @@ body {
   background: var(--bg-primary);
   padding: 2px 6px;
   border-radius: 4px;
+  margin-left: 8px;
 }
 
 .command-palette-empty {
@@ -1040,4 +1054,120 @@ body {
 .sign-out-button:hover {
   background: var(--bg-hover);
   color: var(--accent-red);
+}
+
+/* Backup Modal */
+.backup-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1002;
+}
+
+.backup-modal {
+  width: 400px;
+  max-width: 90vw;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.backup-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.backup-modal-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.backup-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.backup-modal-close:hover {
+  color: var(--text-primary);
+}
+
+.backup-modal-content {
+  padding: 20px;
+}
+
+.backup-section {
+  margin-bottom: 20px;
+}
+
+.backup-section:last-child {
+  margin-bottom: 0;
+}
+
+.backup-section h3 {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.backup-section p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+}
+
+.backup-status {
+  margin-top: 16px;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.backup-status.success {
+  background: rgba(63, 185, 80, 0.1);
+  color: var(--accent-green);
+}
+
+.backup-status.error {
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--accent-red);
+}
+
+/* Backup Button in Header */
+.backup-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.backup-button:hover {
+  background: var(--bg-hover);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
 }

@@ -102,7 +102,7 @@ export function createLocalStorageAdapter(userId: string): StorageAdapter {
     const notes = getStoredNotes();
     const now = new Date().toISOString();
     const notebookNotes = notes.filter(n => n.notebookId === notebookId);
-    const maxOrder = notebookNotes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+    const minOrder = notebookNotes.reduce((min, n) => Math.min(min, n.order || 0), 0);
     const note: Note = {
       id: generateId(),
       notebookId,
@@ -110,7 +110,7 @@ export function createLocalStorageAdapter(userId: string): StorageAdapter {
       content: '',
       attachments: [],
       columns: 1,
-      order: maxOrder + 1,
+      order: minOrder - 1,
       createdAt: now,
       updatedAt: now,
     };

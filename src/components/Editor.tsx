@@ -3,10 +3,9 @@ import { useNotes } from '../context/NotesContext';
 import { AttachmentBar } from './AttachmentBar';
 import { StatusBar } from './StatusBar';
 import {
-  toggleBullet,
-  toggleNumbering,
   moveLine,
   toggleStrikethrough,
+  toggleBold,
   indentLine,
   deindentLine,
   toggleStar,
@@ -258,20 +257,7 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
 
     if (matchesShortcut(e.nativeEvent, 'ctrl+b')) {
       e.preventDefault();
-      const result = toggleBullet(content, textarea.selectionStart, textarea.selectionEnd);
-      setContent(result.content);
-      setIsModified(true);
-      scheduleAutoSave();
-      setTimeout(() => {
-        textarea.selectionStart = result.newSelectionStart;
-        textarea.selectionEnd = result.newSelectionEnd;
-      }, 0);
-      return;
-    }
-
-    if (matchesShortcut(e.nativeEvent, 'ctrl+shift+b')) {
-      e.preventDefault();
-      const result = toggleNumbering(content, textarea.selectionStart, textarea.selectionEnd);
+      const result = toggleBold(content, textarea.selectionStart, textarea.selectionEnd);
       setContent(result.content);
       setIsModified(true);
       scheduleAutoSave();
@@ -395,6 +381,7 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
           className="editor-title-input"
           value={localTitle}
           onChange={handleTitleChange}
+          onBlur={saveNote}
           placeholder="Note title..."
         />
         <button
@@ -445,7 +432,7 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
             onPaste={handlePaste}
             onClick={(e) => handleClick(e.currentTarget)}
             onSelect={(e) => handleSelect(e.currentTarget)}
-            placeholder="Start typing... (Ctrl+B for bullets, Ctrl+Shift+B for numbers)"
+            placeholder="Start typing... (Type '- ' for bullets, '1. ' for numbers)"
           />
         </div>
       )}

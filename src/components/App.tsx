@@ -7,10 +7,11 @@ import { CommandPalette } from './CommandPalette';
 import { InputDialog } from './InputDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { HelpModal } from './HelpModal';
+import { BackupRestore } from './BackupRestore';
 import type { Command } from '../utils/shortcuts';
 import { matchesShortcut } from '../utils/shortcuts';
 
-type DialogType = 'none' | 'newNotebook' | 'newNote' | 'renameNotebook' | 'renameNote' | 'deleteNote' | 'deleteNotebook';
+type DialogType = 'none' | 'newNotebook' | 'renameNotebook' | 'renameNote' | 'deleteNote' | 'deleteNotebook';
 
 export function App() {
   const {
@@ -28,6 +29,7 @@ export function App() {
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [dialogType, setDialogType] = useState<DialogType>('none');
   const [targetLine, setTargetLine] = useState<number | undefined>(undefined);
 
@@ -39,12 +41,11 @@ export function App() {
     setDialogType('none');
   }, [createNotebook]);
 
-  const handleNewNote = useCallback(async (title: string) => {
+  const handleNewNote = useCallback(async () => {
     if (state.activeNotebookId) {
-      const note = await createNote(state.activeNotebookId, title);
+      const note = await createNote(state.activeNotebookId, 'New Note');
       setActiveNote(note.id);
     }
-    setDialogType('none');
   }, [createNote, state.activeNotebookId, setActiveNote]);
 
   const handleRenameNotebook = useCallback(async (name: string) => {
@@ -83,6 +84,13 @@ export function App() {
     }
   }, [state.notes, setActiveNote]);
 
+  const handleNoteSelect = useCallback((noteId: string) => {
+    const note = state.notes.find(n => n.id === noteId);
+    if (note) {
+      setActiveNote(noteId);
+    }
+  }, [state.notes, setActiveNote]);
+
   const navigateNotes = useCallback((direction: 'next' | 'prev') => {
     const notebookNotes = state.notes.filter((n) => n.notebookId === state.activeNotebookId);
     if (notebookNotes.length === 0) return;
@@ -106,7 +114,7 @@ export function App() {
       shortcut: 'alt+n',
       action: () => {
         if (state.activeNotebookId) {
-          setDialogType('newNote');
+          handleNewNote();
         } else {
           alert('Please select a notebook first');
         }
@@ -180,14 +188,7 @@ export function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Command palette
-      if (matchesShortcut(e, 'ctrl+shift+p')) {
-        e.preventDefault();
-        setIsPaletteOpen(true);
-        return;
-      }
-
-      // Quick open (same as command palette for now)
+      // Command palette / Quick open
       if (matchesShortcut(e, 'ctrl+p')) {
         e.preventDefault();
         setIsPaletteOpen(true);
@@ -235,6 +236,13 @@ export function App() {
             </>
           )}
           <button
+            className="backup-button"
+            onClick={() => setIsBackupOpen(true)}
+            title="Backup & Restore"
+          >
+            ↕
+          </button>
+          <button
             className="help-button"
             onClick={() => setIsHelpOpen(true)}
             title="Help"
@@ -250,8 +258,11 @@ export function App() {
 
       <CommandPalette
         commands={commands}
+        notes={state.notes}
+        notebooks={state.notebooks}
         isOpen={isPaletteOpen}
         onClose={() => setIsPaletteOpen(false)}
+        onNoteSelect={handleNoteSelect}
       />
 
       <InputDialog
@@ -259,14 +270,6 @@ export function App() {
         title="New Notebook"
         placeholder="Notebook name..."
         onConfirm={handleNewNotebook}
-        onCancel={() => setDialogType('none')}
-      />
-
-      <InputDialog
-        isOpen={dialogType === 'newNote'}
-        title="New Note"
-        placeholder="Note title..."
-        onConfirm={handleNewNote}
         onCancel={() => setDialogType('none')}
       />
 
@@ -311,6 +314,11 @@ export function App() {
       <HelpModal
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
+      />
+
+      <BackupRestore
+        isOpen={isBackupOpen}
+        onClose={() => setIsBackupOpen(false)}
       />
     </div>
   );

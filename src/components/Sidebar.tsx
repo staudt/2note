@@ -113,12 +113,9 @@ export function Sidebar({ onTaskClick }: SidebarProps) {
   };
 
   const handleNewNote = async (notebookId: string) => {
-    const title = prompt('Note title:');
-    if (title) {
-      const note = await createNote(notebookId, title);
-      setActiveNote(note.id);
-      setExpandedNotebooks(prev => new Set([...prev, notebookId]));
-    }
+    const note = await createNote(notebookId, 'New Note');
+    setActiveNote(note.id);
+    setExpandedNotebooks(prev => new Set([...prev, notebookId]));
   };
 
   const handleDeleteNotebook = async (notebookId: string) => {

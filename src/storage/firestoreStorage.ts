@@ -109,7 +109,7 @@ export function createFirestoreAdapter(db: Firestore, userId: string): StorageAd
 
     async createNote(notebookId: string, title: string): Promise<Note> {
       const notes = await this.getNotes(notebookId);
-      const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+      const minOrder = notes.reduce((min, n) => Math.min(min, n.order || 0), 0);
       const now = new Date().toISOString();
 
       const note: Note = {
@@ -119,7 +119,7 @@ export function createFirestoreAdapter(db: Firestore, userId: string): StorageAd
         content: '',
         attachments: [],
         columns: 1,
-        order: maxOrder + 1,
+        order: minOrder - 1,
         createdAt: now,
         updatedAt: now,
       };
