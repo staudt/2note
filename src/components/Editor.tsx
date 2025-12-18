@@ -122,6 +122,31 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>, column?: 'left' | 'right') => {
     const newContent = e.target.value;
     const cursorPos = e.target.selectionStart;
+    const textarea = e.target;
+
+    // Check for auto-format triggers (like "- " -> "• ")
+    const autoFormatResult = processAutoFormat(newContent, cursorPos);
+
+    if (autoFormatResult) {
+      // For two-column mode
+      if (column) {
+        if (column === 'left') {
+          setLeftContent(autoFormatResult.content);
+        } else {
+          setRightContent(autoFormatResult.content);
+        }
+      } else {
+        setLocalContent(autoFormatResult.content);
+      }
+      setIsModified(true);
+      scheduleAutoSave();
+      setTimeout(() => {
+        textarea.selectionStart = autoFormatResult.newSelectionStart;
+        textarea.selectionEnd = autoFormatResult.newSelectionStart;
+        updateCursorPosition(textarea);
+      }, 0);
+      return;
+    }
 
     // For two-column mode
     if (column) {
@@ -130,29 +155,9 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
       } else {
         setRightContent(newContent);
       }
-      setIsModified(true);
-      scheduleAutoSave();
-      updateCursorPosition(e.target);
-      return;
+    } else {
+      setLocalContent(newContent);
     }
-
-    // Check for auto-format triggers (like "- " -> "• ")
-    const autoFormatResult = processAutoFormat(newContent, cursorPos);
-    if (autoFormatResult) {
-      setLocalContent(autoFormatResult.content);
-      setIsModified(true);
-      scheduleAutoSave();
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.selectionStart = autoFormatResult.newSelectionStart;
-          textareaRef.current.selectionEnd = autoFormatResult.newSelectionStart;
-          updateCursorPosition(textareaRef.current);
-        }
-      }, 0);
-      return;
-    }
-
-    setLocalContent(newContent);
     setIsModified(true);
     scheduleAutoSave();
     updateCursorPosition(e.target);

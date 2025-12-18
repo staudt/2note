@@ -244,13 +244,13 @@ export function indentLine(
 
   let offset = 0;
   for (let i = startLineIndex; i <= endLineIndex; i++) {
-    lines[i] = '  ' + lines[i];
-    offset += 2;
+    lines[i] = '    ' + lines[i];
+    offset += 4;
   }
 
   return {
     content: lines.join('\n'),
-    newSelectionStart: selectionStart + 2,
+    newSelectionStart: selectionStart + 4,
     newSelectionEnd: selectionEnd + offset,
   };
 }
@@ -271,7 +271,12 @@ export function deindentLine(
       lines[i] = lines[i].slice(1);
       if (i === startLineIndex) startOffset = -1;
       totalOffset -= 1;
+    } else if (lines[i].startsWith('    ')) {
+      lines[i] = lines[i].slice(4);
+      if (i === startLineIndex) startOffset = -4;
+      totalOffset -= 4;
     } else if (lines[i].startsWith('  ')) {
+      // Handle legacy 2-space indents
       lines[i] = lines[i].slice(2);
       if (i === startLineIndex) startOffset = -2;
       totalOffset -= 2;
