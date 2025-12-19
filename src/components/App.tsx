@@ -254,22 +254,52 @@ export function App() {
   // Restore last active note/notebook after initial load
   useEffect(() => {
     if (state.isLoading || initialLoadDone.current) return;
+    if (state.notes.length === 0) {
+      initialLoadDone.current = true;
+      return;
+    }
 
     const uiState = loadUIState();
+    let noteToOpen: string | null = null;
+    let notebookToOpen: string | null = null;
 
-    // Only restore if notes are loaded and the saved note still exists
+    // Try to restore last opened note
     if (uiState.lastActiveNoteId && state.notes.some(n => n.id === uiState.lastActiveNoteId)) {
-      setActiveNote(uiState.lastActiveNoteId);
-    }
-    if (uiState.lastActiveNotebookId && state.notebooks.some(n => n.id === uiState.lastActiveNotebookId)) {
-      setActiveNotebook(uiState.lastActiveNotebookId);
+      noteToOpen = uiState.lastActiveNoteId;
+    } else {
+      // No last note or it doesn't exist - open the most recent note
+      const sortedNotes = [...state.notes].sort((a, b) => {
+        const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+      if (sortedNotes.length > 0) {
+        noteToOpen = sortedNotes[0].id;
+      }
     }
 
-    // Filter expanded notebooks to only include existing ones
+    // Set the active note and its notebook
+    if (noteToOpen) {
+      const note = state.notes.find(n => n.id === noteToOpen);
+      if (note) {
+        setActiveNote(noteToOpen);
+        notebookToOpen = note.notebookId;
+        setActiveNotebook(notebookToOpen);
+      }
+    }
+
+    // Build expanded notebooks set - include the active note's notebook
     const validExpanded = uiState.expandedNotebooks.filter(id =>
       state.notebooks.some(n => n.id === id)
     );
-    setExpandedNotebooks(new Set(validExpanded));
+    const expandedSet = new Set(validExpanded);
+
+    // Always expand the notebook containing the active note
+    if (notebookToOpen) {
+      expandedSet.add(notebookToOpen);
+    }
+
+    setExpandedNotebooks(expandedSet);
 
     initialLoadDone.current = true;
   }, [state.isLoading, state.notes, state.notebooks, setActiveNote, setActiveNotebook]);
