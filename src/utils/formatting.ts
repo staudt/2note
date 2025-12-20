@@ -171,39 +171,13 @@ export function toggleStrikethrough(
 }
 
 export function toggleBold(
-  content: string,
-  selectionStart: number,
-  selectionEnd: number
-): { content: string; newSelectionStart: number; newSelectionEnd: number } {
-  if (selectionStart === selectionEnd) {
-    // No selection - insert ** and place cursor in middle
-    const newContent = content.slice(0, selectionStart) + '****' + content.slice(selectionEnd);
-    return {
-      content: newContent,
-      newSelectionStart: selectionStart + 2,
-      newSelectionEnd: selectionStart + 2,
-    };
-  }
-
-  const selectedText = content.slice(selectionStart, selectionEnd);
-
-  if (selectedText.startsWith('**') && selectedText.endsWith('**') && selectedText.length > 4) {
-    // Remove bold
-    const newText = selectedText.slice(2, -2);
-    return {
-      content: content.slice(0, selectionStart) + newText + content.slice(selectionEnd),
-      newSelectionStart: selectionStart,
-      newSelectionEnd: selectionStart + newText.length,
-    };
-  } else {
-    // Add bold
-    const newText = `**${selectedText}**`;
-    return {
-      content: content.slice(0, selectionStart) + newText + content.slice(selectionEnd),
-      newSelectionStart: selectionStart,
-      newSelectionEnd: selectionStart + newText.length,
-    };
-  }
+  _content: string,
+  _selectionStart: number,
+  _selectionEnd: number
+): { content: string; newSelectionStart: number; newSelectionEnd: number } | null {
+  // Return null to indicate that this should be handled by the editor directly
+  // The editor will use contenteditable's execCommand for bold formatting
+  return null;
 }
 
 export function getLineInfo(content: string, cursorPos: number): {
@@ -244,13 +218,13 @@ export function indentLine(
 
   let offset = 0;
   for (let i = startLineIndex; i <= endLineIndex; i++) {
-    lines[i] = '    ' + lines[i];
-    offset += 4;
+    lines[i] = '\t' + lines[i];
+    offset += 1;
   }
 
   return {
     content: lines.join('\n'),
-    newSelectionStart: selectionStart + 4,
+    newSelectionStart: selectionStart + 1,
     newSelectionEnd: selectionEnd + offset,
   };
 }

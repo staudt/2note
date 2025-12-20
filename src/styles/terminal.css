@@ -276,10 +276,19 @@ body {
   white-space: pre;
   overflow-x: auto;
   overflow-y: auto;
+  tab-size: 2;
+  -moz-tab-size: 2;
 }
 
 .editor-textarea::placeholder {
   color: var(--text-muted);
+}
+
+.editor-textarea[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+  position: absolute;
 }
 
 /* Two column layout */
@@ -1236,35 +1245,7 @@ body {
   transform: rotate(180deg);
 }
 
-/* Sidebar Hover Expand (when collapsed) */
-.sidebar.collapsed:hover {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 250px;
-  z-index: 100;
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
-}
-
-.sidebar.collapsed:hover .sidebar-header {
-  padding: 12px 16px;
-  justify-content: space-between;
-}
-
-.sidebar.collapsed:hover .sidebar-header-text,
-.sidebar.collapsed:hover .sidebar-content,
-.sidebar.collapsed:hover .sidebar-tasks {
-  display: flex;
-}
-
-.sidebar.collapsed:hover .sidebar-content {
-  display: block;
-}
-
-.sidebar.collapsed:hover .sidebar-collapse-btn {
-  transform: rotate(0deg);
-}
+/* Remove hover expansion - require button click instead */
 
 /* Mobile Overlay */
 .sidebar-overlay {
@@ -1325,10 +1306,6 @@ body {
     display: block;
   }
 
-  .sidebar.collapsed:hover {
-    position: fixed;
-    box-shadow: none;
-  }
 
   .app-main {
     position: relative;

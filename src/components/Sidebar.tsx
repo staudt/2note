@@ -62,8 +62,17 @@ export function Sidebar({
     const tasks: PendingTask[] = [];
     const taskRegex = /\[ \]/g;
 
+    // Helper to strip HTML tags
+    const stripHtml = (html: string): string => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    };
+
     for (const note of state.notes) {
-      const lines = note.content.split('\n');
+      // Strip HTML tags from content before processing
+      const plainContent = stripHtml(note.content);
+      const lines = plainContent.split('\n');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (taskRegex.test(line)) {
