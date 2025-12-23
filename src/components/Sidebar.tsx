@@ -60,7 +60,7 @@ export function Sidebar({
   // Parse pending tasks from all notes
   const pendingTasks = useMemo((): PendingTask[] => {
     const tasks: PendingTask[] = [];
-    const taskRegex = /\[ \]/g;
+    const taskRegex = /☐/g;
 
     // Helper to strip HTML tags
     const stripHtml = (html: string): string => {
@@ -76,14 +76,17 @@ export function Sidebar({
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (taskRegex.test(line)) {
-          // Extract the task text (everything after [ ])
-          const text = line.replace(/.*\[ \]\s*/, '').trim();
-          tasks.push({
-            noteId: note.id,
-            noteTitle: note.title || 'Untitled',
-            line: i + 1, // 1-indexed
-            text: text || '(empty task)',
-          });
+          // Extract the task text (everything after ☐ on this line only)
+          const taskIndex = line.indexOf('☐');
+          if (taskIndex !== -1) {
+            const text = line.slice(taskIndex + 1).trim();
+            tasks.push({
+              noteId: note.id,
+              noteTitle: note.title || 'Untitled',
+              line: i + 1, // 1-indexed
+              text: text || '(empty task)',
+            });
+          }
         }
         // Reset regex lastIndex for next iteration
         taskRegex.lastIndex = 0;
@@ -383,7 +386,7 @@ export function Sidebar({
                   onClick={() => onTaskClick(task.noteId, task.line)}
                   title={`${task.noteTitle} - Line ${task.line}`}
                 >
-                  <span className="task-checkbox">[ ]</span>
+                  <span className="task-checkbox">☐</span>
                   <span className="task-text">{task.text}</span>
                   <span className="task-source">{task.noteTitle}</span>
                 </div>

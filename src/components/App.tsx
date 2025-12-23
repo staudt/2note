@@ -395,7 +395,11 @@ export function App() {
           expandedNotebooks={expandedNotebooks}
           onExpandedChange={handleExpandedChange}
         />
-        <Editor targetLine={targetLine} onLineNavigated={() => setTargetLine(undefined)} />
+        <Editor
+          targetLine={targetLine}
+          onLineNavigated={() => setTargetLine(undefined)}
+          onOpenCommandPalette={() => setIsPaletteOpen(true)}
+        />
       </div>
 
       <CommandPalette

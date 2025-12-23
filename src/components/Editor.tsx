@@ -9,9 +9,10 @@ const COLUMN_SEPARATOR = '\n|||COLUMN|||\n';
 interface EditorProps {
   targetLine?: number;
   onLineNavigated?: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
-export function Editor({ targetLine, onLineNavigated }: EditorProps) {
+export function Editor({ targetLine, onLineNavigated, onOpenCommandPalette }: EditorProps) {
   const { getActiveNote, updateNote, addAttachment } = useNotes();
   const activeNote = getActiveNote();
   const textareaRef = useRef<HTMLTextAreaElement | HTMLDivElement>(null);
@@ -289,24 +290,24 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
           const restOfLine = text.slice(prefix.length);
           let newOffset = cursorOffset;
 
-          if (restOfLine.startsWith('[ ] ')) {
-            // Open task -> Closed task (same length, just change character)
-            node.textContent = prefix + '[x] ' + restOfLine.slice(4);
+          if (restOfLine.startsWith('☐ ')) {
+            // Open task -> Closed task (same length)
+            node.textContent = prefix + '☑ ' + restOfLine.slice(2);
             // No cursor adjustment needed - same length
             newOffset = cursorOffset;
-          } else if (restOfLine.startsWith('[x] ')) {
-            // Closed task -> Remove task (remove 4 characters)
-            node.textContent = prefix + restOfLine.slice(4);
+          } else if (restOfLine.startsWith('☑ ')) {
+            // Closed task -> Remove task (remove 2 characters)
+            node.textContent = prefix + restOfLine.slice(2);
             // Adjust cursor if it's after the task
             if (cursorOffset > prefix.length) {
-              newOffset = Math.max(prefix.length, cursorOffset - 4);
+              newOffset = Math.max(prefix.length, cursorOffset - 2);
             }
           } else {
-            // No task -> Open task (add 4 characters: "[ ] ")
-            node.textContent = prefix + '[ ] ' + restOfLine;
+            // No task -> Open task (add 2 characters: "☐ ")
+            node.textContent = prefix + '☐ ' + restOfLine;
             // Adjust cursor if it's after the insertion point
             if (cursorOffset >= prefix.length) {
-              newOffset = cursorOffset + 4;
+              newOffset = cursorOffset + 2;
             }
           }
 
@@ -386,7 +387,7 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
           const text = node.textContent;
 
           // Check for bullet points
-          const bulletMatch = text.match(/^(\s*)(•\s*|(\d+)\.\s*)((?:\[[ x]\]\s*)?)(⭐\s*)?/);
+          const bulletMatch = text.match(/^(\s*)(•\s*|(\d+)\.\s*)((?:[☐☑]\s*)?)(⭐\s*)?/);
           if (bulletMatch) {
             const [fullMatch, indent, bulletOrNum, num, task] = bulletMatch;
             const restOfLine = text.slice(fullMatch.length);
@@ -407,7 +408,7 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
             } else if (bulletOrNum) {
               newPrefix += bulletOrNum;
             }
-            if (task) newPrefix += '[ ] ';
+            if (task) newPrefix += '☐ ';
             // Don't continue star
 
             document.execCommand('insertText', false, '\n' + newPrefix);
@@ -483,6 +484,346 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
     );
   }
 
+  const toggleBullet = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const container = activeColumn === 'right' ? textareaRightRef.current : textareaRef.current;
+    if (!container) return;
+
+    // Get current selection/cursor position
+    const range = selection.getRangeAt(0);
+
+    // Find the line(s) containing the selection by looking at text nodes
+    const startNode = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer
+      : range.startContainer.childNodes[0] || range.startContainer;
+
+    const endNode = range.endContainer.nodeType === Node.TEXT_NODE
+      ? range.endContainer
+      : range.endContainer.childNodes[range.endContainer.childNodes.length - 1] || range.endContainer;
+
+    // For single cursor (no selection), work with just the current line
+    if (range.collapsed) {
+      const node = startNode;
+      if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+        const text = node.textContent;
+        const offset = range.startOffset;
+
+        if (text.match(/^\s*•\s/)) {
+          // Remove bullet
+          node.textContent = text.replace(/^(\s*)•\s*/, '$1');
+          const newRange = document.createRange();
+          newRange.setStart(node, Math.max(0, offset - 2));
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        } else {
+          // Add bullet
+          const match = text.match(/^(\s*)(?:\d+\.\s*)?/);
+          const indent = match ? match[1] : '';
+          const rest = text.slice(match ? match[0].length : 0);
+          node.textContent = indent + '• ' + rest;
+          const newRange = document.createRange();
+          newRange.setStart(node, offset + 2);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    } else {
+      // Multi-line selection - work with selected text, preserving structure
+      const selectedText = range.toString();
+      if (!selectedText) return;
+
+      const lines = selectedText.split('\n');
+
+      // Check if all selected lines have bullets
+      let allHaveBullets = true;
+      for (const line of lines) {
+        if (line.trim() !== '' && !line.match(/^\s*•\s/)) {
+          allHaveBullets = false;
+          break;
+        }
+      }
+
+      const newLines = lines.map(line => {
+        // Preserve empty lines exactly
+        if (line.trim() === '') return line;
+
+        if (allHaveBullets && line.match(/^\s*•\s/)) {
+          return line.replace(/^(\s*)•\s/, '$1');
+        } else if (!allHaveBullets) {
+          const match = line.match(/^(\s*)(?:\d+\.\s)?/);
+          const indent = match ? match[1] : '';
+          const rest = line.slice(match ? match[0].length : 0);
+          return indent + '• ' + rest;
+        }
+        return line;
+      });
+
+      // Replace selection
+      range.deleteContents();
+      const textNode = document.createTextNode(newLines.join('\n'));
+      range.insertNode(textNode);
+
+      // Move cursor to end of inserted text
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    setIsModified(true);
+    scheduleAutoSave();
+  };
+
+  const getAbsoluteOffset = (container: Node, node: Node, offset: number): number => {
+    const range = document.createRange();
+    range.selectNodeContents(container);
+    range.setEnd(node, offset);
+    return range.toString().length;
+  };
+
+  const restoreSelection = (container: HTMLElement, startOffset: number, endOffset: number, adjustment: number) => {
+    const text = container.textContent || '';
+    const newStart = Math.max(0, Math.min(startOffset + adjustment, text.length));
+    const newEnd = Math.max(0, Math.min(endOffset + adjustment, text.length));
+
+    const range = document.createRange();
+    const selection = window.getSelection();
+
+    const findPosition = (targetOffset: number): [Node | null, number] => {
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+      let pos = 0;
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const nodeLength = node.textContent?.length || 0;
+        if (pos + nodeLength >= targetOffset) {
+          return [node, targetOffset - pos];
+        }
+        pos += nodeLength;
+      }
+      return [container.lastChild || container, 0];
+    };
+
+    const [startNode, startNodeOffset] = findPosition(newStart);
+    const [endNode, endNodeOffset] = findPosition(newEnd);
+
+    if (startNode && endNode) {
+      try {
+        range.setStart(startNode, startNodeOffset);
+        range.setEnd(endNode, endNodeOffset);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      } catch (e) {
+        // If selection fails, just place cursor at start
+        container.focus();
+      }
+    }
+  };
+
+  const toggleNumberedList = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const container = activeColumn === 'right' ? textareaRightRef.current : textareaRef.current;
+    if (!container) return;
+
+    const range = selection.getRangeAt(0);
+    const startNode = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer
+      : range.startContainer.childNodes[0] || range.startContainer;
+
+    // For single cursor (no selection), work with just the current line
+    if (range.collapsed) {
+      const node = startNode;
+      if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+        const text = node.textContent;
+        const offset = range.startOffset;
+
+        const numberMatch = text.match(/^\s*(\d+)\.\s/);
+        if (numberMatch) {
+          // Remove number
+          const oldLength = numberMatch[0].length - numberMatch[1].length + 1;
+          node.textContent = text.replace(/^(\s*)\d+\.\s*/, '$1');
+          const newRange = document.createRange();
+          newRange.setStart(node, Math.max(0, offset - oldLength));
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        } else {
+          // Add number
+          const match = text.match(/^(\s*)(?:•\s*)?/);
+          const indent = match ? match[1] : '';
+          const rest = text.slice(match ? match[0].length : 0);
+          node.textContent = indent + '1. ' + rest;
+          const newRange = document.createRange();
+          newRange.setStart(node, offset + 3);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    } else {
+      // Multi-line selection - work with selected text, preserving structure
+      const selectedText = range.toString();
+      if (!selectedText) return;
+
+      const lines = selectedText.split('\n');
+
+      // Check if all selected lines have numbers
+      let allHaveNumbers = true;
+      for (const line of lines) {
+        if (line.trim() !== '' && !line.match(/^\s*\d+\.\s/)) {
+          allHaveNumbers = false;
+          break;
+        }
+      }
+
+      const newLines = lines.map((line, idx) => {
+        // Preserve empty lines exactly
+        if (line.trim() === '') return line;
+
+        if (allHaveNumbers && line.match(/^\s*\d+\.\s/)) {
+          return line.replace(/^(\s*)\d+\.\s/, '$1');
+        } else if (!allHaveNumbers) {
+          const match = line.match(/^(\s*)(?:•\s)?/);
+          const indent = match ? match[1] : '';
+          const rest = line.slice(match ? match[0].length : 0);
+          return indent + `${idx + 1}. ` + rest;
+        }
+        return line;
+      });
+
+      // Replace selection
+      range.deleteContents();
+      const textNode = document.createTextNode(newLines.join('\n'));
+      range.insertNode(textNode);
+
+      // Move cursor to end of inserted text
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    setIsModified(true);
+    scheduleAutoSave();
+  };
+
+  const indentLine = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const container = activeColumn === 'right' ? textareaRightRef.current : textareaRef.current;
+    if (!container) return;
+
+    const range = selection.getRangeAt(0);
+    const startNode = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer
+      : range.startContainer.childNodes[0] || range.startContainer;
+
+    if (range.collapsed) {
+      const node = startNode;
+      if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+        const offset = range.startOffset;
+        node.textContent = '\t' + node.textContent;
+        const newRange = document.createRange();
+        newRange.setStart(node, offset + 1);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+    } else {
+      // Multi-line selection
+      const selectedText = range.toString();
+      if (!selectedText) return;
+
+      const lines = selectedText.split('\n');
+      const newLines = lines.map(line => '\t' + line);
+
+      range.deleteContents();
+      const textNode = document.createTextNode(newLines.join('\n'));
+      range.insertNode(textNode);
+
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    setIsModified(true);
+    scheduleAutoSave();
+  };
+
+  const dedentLine = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const container = activeColumn === 'right' ? textareaRightRef.current : textareaRef.current;
+    if (!container) return;
+
+    const range = selection.getRangeAt(0);
+    const startNode = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer
+      : range.startContainer.childNodes[0] || range.startContainer;
+
+    if (range.collapsed) {
+      const node = startNode;
+      if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+        const text = node.textContent;
+        const offset = range.startOffset;
+        let removed = 0;
+
+        if (text.startsWith('\t')) {
+          node.textContent = text.slice(1);
+          removed = 1;
+        } else if (text.startsWith('    ')) {
+          node.textContent = text.slice(4);
+          removed = 4;
+        }
+
+        if (removed > 0) {
+          const newRange = document.createRange();
+          newRange.setStart(node, Math.max(0, offset - removed));
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    } else {
+      // Multi-line selection
+      const selectedText = range.toString();
+      if (!selectedText) return;
+
+      const lines = selectedText.split('\n');
+      const newLines = lines.map(line => {
+        if (line.startsWith('\t')) return line.slice(1);
+        if (line.startsWith('    ')) return line.slice(4);
+        return line;
+      });
+
+      range.deleteContents();
+      const textNode = document.createTextNode(newLines.join('\n'));
+      range.insertNode(textNode);
+
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    setIsModified(true);
+    scheduleAutoSave();
+  };
+
+  const toggleBold = () => {
+    document.execCommand('bold', false);
+    setIsModified(true);
+    scheduleAutoSave();
+  };
+
   const toggleColumns = async () => {
     if (activeNote) {
       const newColumns = activeNote.columns === 2 ? 1 : 2;
@@ -515,13 +856,61 @@ export function Editor({ targetLine, onLineNavigated }: EditorProps) {
           onBlur={saveNote}
           placeholder="Note title..."
         />
-        <button
-          className="btn btn-icon"
-          onClick={toggleColumns}
-          title={isTwoColumn ? 'Single column' : 'Two columns'}
-        >
-          {isTwoColumn ? '▯' : '▯▯'}
-        </button>
+        <div className="editor-toolbar">
+          <div className="editor-toolbar-group">
+            <button
+              className="btn btn-icon"
+              onClick={toggleBullet}
+              title="Toggle bullet (•)"
+            >
+              •
+            </button>
+            <button
+              className="btn btn-icon"
+              onClick={toggleNumberedList}
+              title="Toggle numbered list"
+            >
+              1.
+            </button>
+            <button
+              className="btn btn-icon"
+              onClick={dedentLine}
+              title="Decrease indent (Shift+Tab)"
+            >
+              ◂
+            </button>
+            <button
+              className="btn btn-icon"
+              onClick={indentLine}
+              title="Increase indent (Tab)"
+            >
+              ▸
+            </button>
+            <button
+              className="btn btn-icon"
+              onClick={toggleBold}
+              title="Bold (Ctrl+B)"
+            >
+              <b>B</b>
+            </button>
+          </div>
+          <div className="editor-toolbar-divider"></div>
+          <button
+            className="btn btn-icon"
+            onClick={onOpenCommandPalette}
+            title="Command palette (Ctrl+P)"
+          >
+            ⌘
+          </button>
+          <div className="editor-toolbar-divider"></div>
+          <button
+            className="btn btn-icon"
+            onClick={toggleColumns}
+            title={isTwoColumn ? 'Single column' : 'Two columns'}
+          >
+            {isTwoColumn ? '▯' : '▯▯'}
+          </button>
+        </div>
       </div>
 
       {isTwoColumn ? (
