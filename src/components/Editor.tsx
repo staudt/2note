@@ -499,10 +499,6 @@ export function Editor({ targetLine, onLineNavigated, onOpenCommandPalette }: Ed
       ? range.startContainer
       : range.startContainer.childNodes[0] || range.startContainer;
 
-    const endNode = range.endContainer.nodeType === Node.TEXT_NODE
-      ? range.endContainer
-      : range.endContainer.childNodes[range.endContainer.childNodes.length - 1] || range.endContainer;
-
     // For single cursor (no selection), work with just the current line
     if (range.collapsed) {
       const node = startNode;
@@ -576,51 +572,6 @@ export function Editor({ targetLine, onLineNavigated, onOpenCommandPalette }: Ed
 
     setIsModified(true);
     scheduleAutoSave();
-  };
-
-  const getAbsoluteOffset = (container: Node, node: Node, offset: number): number => {
-    const range = document.createRange();
-    range.selectNodeContents(container);
-    range.setEnd(node, offset);
-    return range.toString().length;
-  };
-
-  const restoreSelection = (container: HTMLElement, startOffset: number, endOffset: number, adjustment: number) => {
-    const text = container.textContent || '';
-    const newStart = Math.max(0, Math.min(startOffset + adjustment, text.length));
-    const newEnd = Math.max(0, Math.min(endOffset + adjustment, text.length));
-
-    const range = document.createRange();
-    const selection = window.getSelection();
-
-    const findPosition = (targetOffset: number): [Node | null, number] => {
-      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-      let pos = 0;
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const nodeLength = node.textContent?.length || 0;
-        if (pos + nodeLength >= targetOffset) {
-          return [node, targetOffset - pos];
-        }
-        pos += nodeLength;
-      }
-      return [container.lastChild || container, 0];
-    };
-
-    const [startNode, startNodeOffset] = findPosition(newStart);
-    const [endNode, endNodeOffset] = findPosition(newEnd);
-
-    if (startNode && endNode) {
-      try {
-        range.setStart(startNode, startNodeOffset);
-        range.setEnd(endNode, endNodeOffset);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-      } catch (e) {
-        // If selection fails, just place cursor at start
-        container.focus();
-      }
-    }
   };
 
   const toggleNumberedList = () => {
